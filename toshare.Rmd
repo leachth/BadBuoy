@@ -46,12 +46,13 @@ str(alldat) # at the very beginning of the data set the Temp/DO sensor was broke
 I normalized all of the measured values as z-scores -->  (x - mu)/sd and then build several features that I thought might help predict whether or not you had bad data. Since this is time series data, I decided to only build features that rely on previous values since often times we can access real-time streaming data from these buoy platforms. 
 
 These included:
-*zscore == (x - mu)/sd (all the below features were calculated with the zscore, not the value because the values vary pretty widely between sensors.)
-*timefromlast == time since the last measurement
-*first_diff == the first difference of the zscore
-*second_diff == the second difference of the zscore, I like to think about this as acceleration (+ or -) in the measurements.
-*previous.value == this is the zscore of the previous measurement.
-*is.previous.identical == a logical feature for whether or not the observation is identical to the previous observation.
+
+*  zscore == (x - mu)/sd (all the below features were calculated with the zscore, not the value because the values vary pretty widely between sensors.)
+* timefromlast == time since the last measurement 
+* first_diff == the first difference of the zscore 
+*  second_diff == the second difference of the zscore, I like to think about this as acceleration (+ or -) in the measurements. 
+*  previous.value == this is the zscore of the previous measurement. 
+* is.previous.identical == a logical feature for whether or not the observation is identical to the previous observation. 
 
 #Balancing the data
 There are a lot more 'good' values than bad/flagged ones (like 97% good data). So I decided to balance the data between the good and bad for the model.

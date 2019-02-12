@@ -64,7 +64,14 @@ str(alldat) # at the very beginning of the data set the Temp/DO sensor was broke
 
 I normalized all of the measured values as z-scores --&gt; (x - mu)/sd and then build several features that I thought might help predict whether or not you had bad data. Since this is time series data, I decided to only build features that rely on previous values since often times we can access real-time streaming data from these buoy platforms.
 
-These included: *zscore == (x - mu)/sd (all the below features were calculated with the zscore, not the value because the values vary pretty widely between sensors.) *timefromlast == time since the last measurement *first\_diff == the first difference of the zscore *second\_diff == the second difference of the zscore, I like to think about this as acceleration (+ or -) in the measurements. *previous.value == this is the zscore of the previous measurement. *is.previous.identical == a logical feature for whether or not the observation is identical to the previous observation.
+These included:
+
+-   zscore == (x - mu)/sd (all the below features were calculated with the zscore, not the value because the values vary pretty widely between sensors.)
+-   timefromlast == time since the last measurement
+-   first\_diff == the first difference of the zscore
+-   second\_diff == the second difference of the zscore, I like to think about this as acceleration (+ or -) in the measurements.
+-   previous.value == this is the zscore of the previous measurement.
+-   is.previous.identical == a logical feature for whether or not the observation is identical to the previous observation.
 
 Balancing the data
 ==================
@@ -186,20 +193,20 @@ params <- list(booster = "gbtree", objective = "binary:logistic", eta=0.3, gamma
 xgbcv <- xgb.cv( params = params, data = dtrain, nrounds = 100, nfold = 5, showsd = T, stratified = T, print_every_n = 10, early_stopping_rounds = 20, maximize = F)
 ```
 
-    ## [1]  train-error:0.310714+0.001256   test-error:0.310969+0.003587 
+    ## [1]  train-error:0.308712+0.000656   test-error:0.308809+0.002193 
     ## Multiple eval metrics are present. Will use test_error for early stopping.
     ## Will train until test_error hasn't improved in 20 rounds.
     ## 
-    ## [11] train-error:0.246970+0.001465   test-error:0.247781+0.003197 
-    ## [21] train-error:0.219505+0.003779   test-error:0.220815+0.003587 
-    ## [31] train-error:0.206991+0.003455   test-error:0.207356+0.003939 
-    ## [41] train-error:0.198088+0.003262   test-error:0.199446+0.002890 
-    ## [51] train-error:0.194189+0.001572   test-error:0.195232+0.003148 
-    ## [61] train-error:0.191537+0.001712   test-error:0.192336+0.001189 
-    ## [71] train-error:0.188444+0.001450   test-error:0.189713+0.002421 
-    ## [81] train-error:0.186506+0.001221   test-error:0.187761+0.002309 
-    ## [91] train-error:0.183864+0.001050   test-error:0.184480+0.002746 
-    ## [100]    train-error:0.183024+0.000654   test-error:0.184005+0.002675
+    ## [11] train-error:0.245226+0.001326   test-error:0.245781+0.002962 
+    ## [21] train-error:0.218570+0.006320   test-error:0.219818+0.005945 
+    ## [31] train-error:0.205284+0.000897   test-error:0.206389+0.003538 
+    ## [41] train-error:0.196569+0.000653   test-error:0.197909+0.001311 
+    ## [51] train-error:0.191112+0.002727   test-error:0.191921+0.003408 
+    ## [61] train-error:0.187863+0.001037   test-error:0.189055+0.001588 
+    ## [71] train-error:0.185786+0.000799   test-error:0.186539+0.001989 
+    ## [81] train-error:0.183981+0.000724   test-error:0.184740+0.001511 
+    ## [91] train-error:0.182221+0.000575   test-error:0.182996+0.001637 
+    ## [100]    train-error:0.180840+0.000806   test-error:0.181293+0.001232
 
 ``` r
 # best iteration was at 100 - this could probably use some more exploration.
@@ -213,106 +220,106 @@ bst <- xgb.train(data=dtrain, max_depth=2,
                 watchlist=watchlist, objective = "binary:logistic")
 ```
 
-    ## [1]  train-error:0.311076    test-error:0.309697 
-    ## [2]  train-error:0.302329    test-error:0.300422 
-    ## [3]  train-error:0.301047    test-error:0.299318 
-    ## [4]  train-error:0.298994    test-error:0.297894 
-    ## [5]  train-error:0.293166    test-error:0.291556 
-    ## [6]  train-error:0.294110    test-error:0.292749 
-    ## [7]  train-error:0.292579    test-error:0.291182 
-    ## [8]  train-error:0.262142    test-error:0.259974 
-    ## [9]  train-error:0.260593    test-error:0.258621 
-    ## [10] train-error:0.259530    test-error:0.257731 
-    ## [11] train-error:0.259495    test-error:0.257375 
-    ## [12] train-error:0.248166    test-error:0.246159 
-    ## [13] train-error:0.248427    test-error:0.246266 
-    ## [14] train-error:0.248760    test-error:0.246711 
-    ## [15] train-error:0.243454    test-error:0.241975 
-    ## [16] train-error:0.242766    test-error:0.241459 
-    ## [17] train-error:0.239704    test-error:0.238504 
-    ## [18] train-error:0.239876    test-error:0.238753 
-    ## [19] train-error:0.222708    test-error:0.221823 
-    ## [20] train-error:0.217065    test-error:0.217087 
-    ## [21] train-error:0.216875    test-error:0.216820 
-    ## [22] train-error:0.215670    test-error:0.215752 
-    ## [23] train-error:0.211237    test-error:0.211123 
-    ## [24] train-error:0.210187    test-error:0.210002 
-    ## [25] train-error:0.209712    test-error:0.209468 
-    ## [26] train-error:0.212210    test-error:0.212316 
-    ## [27] train-error:0.211837    test-error:0.211817 
-    ## [28] train-error:0.208312    test-error:0.208435 
-    ## [29] train-error:0.209172    test-error:0.209592 
-    ## [30] train-error:0.209024    test-error:0.209396 
-    ## [31] train-error:0.200615    test-error:0.200121 
-    ## [32] train-error:0.200259    test-error:0.199765 
-    ## [33] train-error:0.200182    test-error:0.199712 
-    ## [34] train-error:0.203321    test-error:0.203771 
-    ## [35] train-error:0.203119    test-error:0.203468 
-    ## [36] train-error:0.200633    test-error:0.199890 
-    ## [37] train-error:0.200360    test-error:0.199551 
-    ## [38] train-error:0.199820    test-error:0.199534 
-    ## [39] train-error:0.197974    test-error:0.197468 
-    ## [40] train-error:0.199173    test-error:0.198964 
-    ## [41] train-error:0.198799    test-error:0.198982 
-    ## [42] train-error:0.197950    test-error:0.198003 
-    ## [43] train-error:0.196805    test-error:0.196276 
-    ## [44] train-error:0.196716    test-error:0.196062 
-    ## [45] train-error:0.196407    test-error:0.195920 
-    ## [46] train-error:0.196295    test-error:0.196151 
-    ## [47] train-error:0.196259    test-error:0.196115 
-    ## [48] train-error:0.195790    test-error:0.195421 
-    ## [49] train-error:0.195879    test-error:0.195653 
-    ## [50] train-error:0.195766    test-error:0.194940 
-    ## [51] train-error:0.194847    test-error:0.194139 
-    ## [52] train-error:0.194301    test-error:0.193534 
-    ## [53] train-error:0.193862    test-error:0.192608 
-    ## [54] train-error:0.193571    test-error:0.192430 
-    ## [55] train-error:0.193369    test-error:0.192448 
-    ## [56] train-error:0.193357    test-error:0.192377 
-    ## [57] train-error:0.193322    test-error:0.192519 
-    ## [58] train-error:0.193369    test-error:0.192626 
-    ## [59] train-error:0.192052    test-error:0.191594 
-    ## [60] train-error:0.191891    test-error:0.191255 
-    ## [61] train-error:0.191559    test-error:0.190899 
-    ## [62] train-error:0.191808    test-error:0.191237 
-    ## [63] train-error:0.191690    test-error:0.191113 
-    ## [64] train-error:0.190206    test-error:0.189938 
-    ## [65] train-error:0.188906    test-error:0.188905 
-    ## [66] train-error:0.188859    test-error:0.188816 
-    ## [67] train-error:0.188901    test-error:0.188567 
-    ## [68] train-error:0.188485    test-error:0.188229 
-    ## [69] train-error:0.188432    test-error:0.188122 
-    ## [70] train-error:0.188402    test-error:0.188104 
-    ## [71] train-error:0.187417    test-error:0.187267 
-    ## [72] train-error:0.187209    test-error:0.186555 
-    ## [73] train-error:0.187328    test-error:0.186716 
-    ## [74] train-error:0.187399    test-error:0.186965 
-    ## [75] train-error:0.187203    test-error:0.187214 
-    ## [76] train-error:0.187215    test-error:0.187214 
-    ## [77] train-error:0.187191    test-error:0.187232 
-    ## [78] train-error:0.187162    test-error:0.187196 
-    ## [79] train-error:0.187304    test-error:0.187196 
-    ## [80] train-error:0.187185    test-error:0.187000 
-    ## [81] train-error:0.186918    test-error:0.186894 
-    ## [82] train-error:0.186764    test-error:0.186644 
-    ## [83] train-error:0.186450    test-error:0.186128 
-    ## [84] train-error:0.186450    test-error:0.186146 
-    ## [85] train-error:0.186461    test-error:0.186146 
-    ## [86] train-error:0.186337    test-error:0.186003 
-    ## [87] train-error:0.186165    test-error:0.185914 
-    ## [88] train-error:0.186313    test-error:0.186075 
-    ## [89] train-error:0.186378    test-error:0.186092 
-    ## [90] train-error:0.186111    test-error:0.185487 
-    ## [91] train-error:0.186236    test-error:0.185594 
-    ## [92] train-error:0.186034    test-error:0.185469 
-    ## [93] train-error:0.185797    test-error:0.185398 
-    ## [94] train-error:0.185738    test-error:0.185060 
-    ## [95] train-error:0.186105    test-error:0.185647 
-    ## [96] train-error:0.186105    test-error:0.185612 
-    ## [97] train-error:0.186028    test-error:0.185576 
-    ## [98] train-error:0.185957    test-error:0.185558 
-    ## [99] train-error:0.184794    test-error:0.184241 
-    ## [100]    train-error:0.184272    test-error:0.183386
+    ## [1]  train-error:0.308423    test-error:0.308220 
+    ## [2]  train-error:0.301213    test-error:0.301704 
+    ## [3]  train-error:0.299617    test-error:0.300244 
+    ## [4]  train-error:0.295617    test-error:0.294956 
+    ## [5]  train-error:0.292798    test-error:0.292749 
+    ## [6]  train-error:0.293101    test-error:0.292731 
+    ## [7]  train-error:0.291766    test-error:0.291254 
+    ## [8]  train-error:0.258806    test-error:0.258158 
+    ## [9]  train-error:0.258842    test-error:0.258318 
+    ## [10] train-error:0.259127    test-error:0.258461 
+    ## [11] train-error:0.247181    test-error:0.246764 
+    ## [12] train-error:0.249585    test-error:0.250200 
+    ## [13] train-error:0.245609    test-error:0.245874 
+    ## [14] train-error:0.246208    test-error:0.246390 
+    ## [15] train-error:0.239306    test-error:0.239786 
+    ## [16] train-error:0.239016    test-error:0.239554 
+    ## [17] train-error:0.239217    test-error:0.239910 
+    ## [18] train-error:0.227195    test-error:0.227769 
+    ## [19] train-error:0.224690    test-error:0.225276 
+    ## [20] train-error:0.224150    test-error:0.224386 
+    ## [21] train-error:0.217433    test-error:0.217319 
+    ## [22] train-error:0.214614    test-error:0.214737 
+    ## [23] train-error:0.214323    test-error:0.213936 
+    ## [24] train-error:0.208834    test-error:0.209806 
+    ## [25] train-error:0.208246    test-error:0.209165 
+    ## [26] train-error:0.208068    test-error:0.209005 
+    ## [27] train-error:0.207789    test-error:0.208649 
+    ## [28] train-error:0.207677    test-error:0.208506 
+    ## [29] train-error:0.207315    test-error:0.208310 
+    ## [30] train-error:0.206852    test-error:0.207118 
+    ## [31] train-error:0.206769    test-error:0.206708 
+    ## [32] train-error:0.204270    test-error:0.205462 
+    ## [33] train-error:0.204146    test-error:0.205284 
+    ## [34] train-error:0.203819    test-error:0.204928 
+    ## [35] train-error:0.203677    test-error:0.204732 
+    ## [36] train-error:0.198306    test-error:0.198679 
+    ## [37] train-error:0.198217    test-error:0.198537 
+    ## [38] train-error:0.198087    test-error:0.198430 
+    ## [39] train-error:0.197576    test-error:0.197664 
+    ## [40] train-error:0.197066    test-error:0.197255 
+    ## [41] train-error:0.196995    test-error:0.196952 
+    ## [42] train-error:0.196099    test-error:0.196062 
+    ## [43] train-error:0.196010    test-error:0.195884 
+    ## [44] train-error:0.193517    test-error:0.193445 
+    ## [45] train-error:0.192651    test-error:0.192573 
+    ## [46] train-error:0.192793    test-error:0.192715 
+    ## [47] train-error:0.192782    test-error:0.192751 
+    ## [48] train-error:0.191939    test-error:0.191736 
+    ## [49] train-error:0.191535    test-error:0.191416 
+    ## [50] train-error:0.189844    test-error:0.189493 
+    ## [51] train-error:0.189245    test-error:0.188709 
+    ## [52] train-error:0.189666    test-error:0.189742 
+    ## [53] train-error:0.189001    test-error:0.188389 
+    ## [54] train-error:0.188918    test-error:0.188300 
+    ## [55] train-error:0.188473    test-error:0.188175 
+    ## [56] train-error:0.187998    test-error:0.187766 
+    ## [57] train-error:0.187915    test-error:0.187143 
+    ## [58] train-error:0.187168    test-error:0.186164 
+    ## [59] train-error:0.187340    test-error:0.186306 
+    ## [60] train-error:0.188177    test-error:0.186840 
+    ## [61] train-error:0.188177    test-error:0.186840 
+    ## [62] train-error:0.187690    test-error:0.186449 
+    ## [63] train-error:0.187464    test-error:0.186306 
+    ## [64] train-error:0.187464    test-error:0.186306 
+    ## [65] train-error:0.188260    test-error:0.186644 
+    ## [66] train-error:0.186954    test-error:0.185612 
+    ## [67] train-error:0.187334    test-error:0.186253 
+    ## [68] train-error:0.186070    test-error:0.185131 
+    ## [69] train-error:0.185583    test-error:0.184704 
+    ## [70] train-error:0.184770    test-error:0.184668 
+    ## [71] train-error:0.184598    test-error:0.184437 
+    ## [72] train-error:0.184675    test-error:0.184312 
+    ## [73] train-error:0.184723    test-error:0.184330 
+    ## [74] train-error:0.184604    test-error:0.184152 
+    ## [75] train-error:0.184770    test-error:0.184045 
+    ## [76] train-error:0.184758    test-error:0.184045 
+    ## [77] train-error:0.185530    test-error:0.184401 
+    ## [78] train-error:0.184284    test-error:0.183102 
+    ## [79] train-error:0.184236    test-error:0.183689 
+    ## [80] train-error:0.184201    test-error:0.183653 
+    ## [81] train-error:0.183969    test-error:0.183458 
+    ## [82] train-error:0.184236    test-error:0.183707 
+    ## [83] train-error:0.184028    test-error:0.183066 
+    ## [84] train-error:0.183625    test-error:0.182959 
+    ## [85] train-error:0.183625    test-error:0.182888 
+    ## [86] train-error:0.183833    test-error:0.183155 
+    ## [87] train-error:0.183465    test-error:0.182870 
+    ## [88] train-error:0.182557    test-error:0.182194 
+    ## [89] train-error:0.182693    test-error:0.182336 
+    ## [90] train-error:0.182681    test-error:0.182336 
+    ## [91] train-error:0.182675    test-error:0.182354 
+    ## [92] train-error:0.182705    test-error:0.182318 
+    ## [93] train-error:0.182414    test-error:0.182122 
+    ## [94] train-error:0.181827    test-error:0.181535 
+    ## [95] train-error:0.181352    test-error:0.181036 
+    ## [96] train-error:0.181370    test-error:0.180876 
+    ## [97] train-error:0.181233    test-error:0.180502 
+    ## [98] train-error:0.181204    test-error:0.180502 
+    ## [99] train-error:0.181204    test-error:0.180502 
+    ## [100]    train-error:0.181043    test-error:0.180378
 
 ``` r
 feature_names = names(train[, c(4:9,11)])
@@ -341,28 +348,28 @@ caret::confusionMatrix(as.factor(prediction), as.factor(ttest[,7]), mode = "ever
     ## 
     ##           Reference
     ## Prediction     0     1
-    ##          0 22044  4281
-    ##          1  6020 23826
+    ##          0 22258  4264
+    ##          1  5868 23781
     ##                                           
-    ##                Accuracy : 0.8166          
-    ##                  95% CI : (0.8134, 0.8198)
-    ##     No Information Rate : 0.5004          
+    ##                Accuracy : 0.8196          
+    ##                  95% CI : (0.8164, 0.8228)
+    ##     No Information Rate : 0.5007          
     ##     P-Value [Acc > NIR] : < 2.2e-16       
     ##                                           
-    ##                   Kappa : 0.6332          
+    ##                   Kappa : 0.6393          
     ##  Mcnemar's Test P-Value : < 2.2e-16       
     ##                                           
-    ##             Sensitivity : 0.7855          
-    ##             Specificity : 0.8477          
-    ##          Pos Pred Value : 0.8374          
-    ##          Neg Pred Value : 0.7983          
-    ##               Precision : 0.8374          
-    ##                  Recall : 0.7855          
-    ##                      F1 : 0.8106          
-    ##              Prevalence : 0.4996          
-    ##          Detection Rate : 0.3924          
-    ##    Detection Prevalence : 0.4687          
-    ##       Balanced Accuracy : 0.8166          
+    ##             Sensitivity : 0.7914          
+    ##             Specificity : 0.8480          
+    ##          Pos Pred Value : 0.8392          
+    ##          Neg Pred Value : 0.8021          
+    ##               Precision : 0.8392          
+    ##                  Recall : 0.7914          
+    ##                      F1 : 0.8146          
+    ##              Prevalence : 0.5007          
+    ##          Detection Rate : 0.3963          
+    ##    Detection Prevalence : 0.4722          
+    ##       Balanced Accuracy : 0.8197          
     ##                                           
     ##        'Positive' Class : 0               
     ## 
@@ -378,28 +385,28 @@ caret::confusionMatrix(as.factor(test$flagBASE), as.factor(ttest[,7]), mode = "e
     ## 
     ##           Reference
     ## Prediction     0     1
-    ##          0 28064 26178
-    ##          1     0  1929
+    ##          0 28126 26215
+    ##          1     0  1830
     ##                                           
-    ##                Accuracy : 0.534           
-    ##                  95% CI : (0.5298, 0.5381)
-    ##     No Information Rate : 0.5004          
+    ##                Accuracy : 0.5333          
+    ##                  95% CI : (0.5292, 0.5374)
+    ##     No Information Rate : 0.5007          
     ##     P-Value [Acc > NIR] : < 2.2e-16       
     ##                                           
-    ##                   Kappa : 0.0686          
+    ##                   Kappa : 0.0653          
     ##  Mcnemar's Test P-Value : < 2.2e-16       
     ##                                           
     ##             Sensitivity : 1.00000         
-    ##             Specificity : 0.06863         
-    ##          Pos Pred Value : 0.51739         
+    ##             Specificity : 0.06525         
+    ##          Pos Pred Value : 0.51758         
     ##          Neg Pred Value : 1.00000         
-    ##               Precision : 0.51739         
+    ##               Precision : 0.51758         
     ##                  Recall : 1.00000         
-    ##                      F1 : 0.68194         
-    ##              Prevalence : 0.49962         
-    ##          Detection Rate : 0.49962         
-    ##    Detection Prevalence : 0.96566         
-    ##       Balanced Accuracy : 0.53432         
+    ##                      F1 : 0.68212         
+    ##              Prevalence : 0.50072         
+    ##          Detection Rate : 0.50072         
+    ##    Detection Prevalence : 0.96742         
+    ##       Balanced Accuracy : 0.53263         
     ##                                           
     ##        'Positive' Class : 0               
     ## 
