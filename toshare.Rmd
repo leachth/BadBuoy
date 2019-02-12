@@ -1,0 +1,174 @@
+---
+title: "Bad Buoy, Bad Buoy, whatchya gonna do?"
+author: "Taylor Leach"
+date: "2/11/2019"
+output: rmarkdown::github_document
+---
+
+#Bad Buoy, Bad Buoy 
+Environmental data is often collected using autonomous sensors on buoy or stream monitoring stations. These stations collect many different important parameters such as air temperature and relative humidity as well as aquatic variables like water temperature, dissolved oxygen and chlorophyll fluorescence (a measure of how much algae is in the water). These data are measured at time intervals from secs to hours depending on site, creating many thousands of data points a day and millions over the years. However, these buoy platforms and the sensors on them can sometimes act up, giving inaccurate measurements or breakdown and stop measuring altogether. A common challenge in using these high-frequency data is identifying sensor failure early and fix or remove bad data for later data analysis. Currently, bad data identification in this field is a primarily manual process, with only a simple automated processes (‘out of range’ threshold is the most common). 
+
+###Objective
+I wanted to come up with a better method for identifying and flagging bad data. To do this, I built a model to predict bad/flagged in automated environmental monitoring stations.
+
+###Data
+The data I am using here come from an automated buoy - names 'David Buoy' run by the Center for Limnology at the University of Wisconsin, Madison.
+<http://blog.limnology.wisc.edu/david-buoy-ready-for-year-6-on-lake-mendota/>
+
+These data include about 4 growing seasons of air temperature, and relative humidity, water temperature, dissolved oxygen (mg/l and percent saturation), and chlorophyll and phycocyanin fluorescence which are measures of how much algea and cyanobacteria are in the water, respectively. I did a bunch of data cleaning that I am not including here. 
+```{r data}
+setwd("~/Dropbox/0_Sensor_flagged_data")
+load(file = 'dat.Rdata', verbose = TRUE)
+range(alldat$datetime)
+```
+
+```{r load some libraries, include=TRUE}
+knitr::opts_chunk$set(echo = FALSE)
+library(plyr)
+library(dplyr)
+library(xgboost)
+library(caret)
+library(ggplot2)
+```
+
+Here is an example time series of the water temperature from July 2017.
+
+```{r timeseries, echo=FALSE}
+ggplot(subset(alldat, format(datetime,'%Y-%m')=='2017-07' & variable == "doptotemp"), aes(x = datetime, y = value))+geom_point(alpha = 0.3, size = 0.5, color = "dodgerblue")+
+  labs(x = "2017", y = "Water Temperature (deg C)")+
+  theme_minimal()
+```
+
+```{r building features}
+str(alldat) # at the very beginning of the data set the Temp/DO sensor was broken, so there are some NA's initially. Don't worry there are a lot more interesting data in here. 
+```
+
+I normalized all of the measured values as z-scores -->  (x - mu)/sd and then build several features that I thought might help predict whether or not you had bad data. Since this is time series data, I decided to only build features that rely on previous values since often times we can access real-time streaming data from these buoy platforms. 
+
+These included:
+timefromlast == time since the last measurement
+first_diff == the first difference of the zscore
+second_diff == the second difference of the zscore, I like to think about this as acceleration (+ or -) in the measurements.
+previous.value == this is the zscore of the previous measurement.
+is.previous.identical == a logical feature for whether or not the observation is identical to the previous observation.
+
+#Balancing the data
+There are a lot more 'good' values than bad/flagged ones (like 97% good data). So I decided to balance the data between the good and bad for the model.
+```{r balance data}
+load(file = 'dat.Rdata', verbose = TRUE)
+alldat = alldat[!is.na(alldat$zscore), ] # if there is no zscore we can't do much here so get rid of them
+edflags = subset(alldat, flag %in%c("E", "D")) # the flags that aren't NA's or out of range (i.e. the basecase already applied)
+goodonly = subset(alldat, flag =="")
+alldat.small = dplyr::sample_n(goodonly, nrow(edflags)) # randomly sample so our dataset is 50:50 good and bab
+alldata.balanced = rbind(edflags, alldat.small)
+```
+
+#Base case
+The base case that I used here was a simple threshold - so do observed values fall outside a range of expected values for a given parameter? For example, water temperature is fresh water never below 0 deg C and won't get above 40 deg C at the latitude where this lake is located. I didn't know the actual ranges that the data owners used but I was able to reconstruct them from the good data and a some experience working with these types of sensors. 
+```{r thresholds}
+detach(package:plyr)
+load(file = 'dat.Rdata', verbose = TRUE)
+inrange = subset(alldat, flag == "")
+gg = inrange %>%
+  group_by(variable) %>%
+  summarize(low = min(value, na.rm = T), high = max(value, na.rm = T))
+gg
+```
+I rounded a bit and then applied these thresholds to all of the data. This had to be done pretty manually because the thresholds were unique for each variable.
+
+```{r create basecase flags}
+wtemp = subset(alldata.balanced , variable == "doptotemp")
+wtemp$flagBASE = c(rep(0, length(wtemp$value)))
+wtemp$flagBASE = as.numeric(is.na(wtemp$value) | (wtemp$value > 40 | wtemp$value < 0))
+
+airtemp = subset(alldata.balanced , variable =="airTL")
+airtemp$flagBASE = c(rep(0, length(airtemp$value)))
+airtemp$flagBASE = as.numeric(is.na(airtemp$value) | (airtemp$value > 40 | airtemp$value < -10))
+
+doobs = subset(alldata.balanced , variable =="doptoppm")
+doobs$flagBASE = c(rep(0, length(doobs$value)))
+doobs$flagBASE = as.numeric(is.na(doobs$value) | (doobs$value > 24 | doobs$value < 0))
+
+doobspercent = subset(alldata.balanced , variable == "doptosat")
+doobspercent$flagBASE = c(rep(0, length(doobspercent$value)))
+doobspercent$flagBASE = as.numeric(is.na(doobspercent$value) | (doobspercent$value > 205 | doobspercent$value < 0))
+
+phytos = subset(alldata.balanced , variable %in% c("chlor.x", "phyco"))
+phytos$flagBASE = c(rep(0, length(phytos$value)))
+phytos$flagBASE = as.numeric(is.na(phytos$value) | (phytos$value > 50000 | phytos$value < -3000))
+
+relH = subset(alldata.balanced , variable =="rhL")
+relH$flagBASE = c(rep(0, length(relH$value)))
+relH$flagBASE = as.numeric((is.na(relH$value) | (relH$value <= 0 | relH$value > 102)))
+
+alldat.balanced.base = rbind(wtemp, airtemp,doobs,doobspercent, phytos,relH)
+```
+
+##Create train, test and validation datasets
+```{r train, test, validate}
+spec = c(train = .6, test = .2, validate = .2)
+g = sample(cut(
+  seq(nrow(alldat.balanced.base)), 
+  nrow(alldat.balanced.base)*cumsum(c(0,spec)),
+  labels = names(spec)
+))
+
+res = split(alldat.balanced.base, g)
+train = res[["train"]]
+test = res[["test"]]
+validation = res[["validate"]]
+
+```
+
+Okay, we are ready to build the model.
+
+## Build the xgboost model to predict bad data from our buoy
+
+```{r  data structure for model}
+# create xbg.DMatrix objects for input
+ttrain <- data.matrix(train[, c(4:9,11)]) 
+ttest  <- data.matrix(test[, c(4:9,11)])
+dtrain <- xgb.DMatrix(ttrain[,c(1:6)], label=ttrain[,7])
+dtest  <- xgb.DMatrix(ttest[,c(1:6)], label=ttest[,7])
+```
+I did not do a lot of hyperparameterization but used the xgboosts defaults as a reasonable starting point. However, I set max_depth = 2, since I don't have a lot of features the default of 6 didn't make much sense. 
+```{r model}
+# How many iterations?
+params <- list(booster = "gbtree", objective = "binary:logistic", eta=0.3, gamma=0, max_depth=2, min_child_weight=1, subsample=1, colsample_bytree=1)
+xgbcv <- xgb.cv( params = params, data = dtrain, nrounds = 100, nfold = 5, showsd = T, stratified = T, print_every_n = 10, early_stopping_rounds = 20, maximize = F)
+# best iteration was at 100
+```
+
+```{r build the model, echo = T}
+watchlist <- list(train = dtrain, test = dtest)
+
+bst <- xgb.train(data=dtrain, max_depth=2, 
+                eta=0.3, nrounds=100, eval_metric = "error",
+                watchlist=watchlist, objective = "binary:logistic")
+
+feature_names = names(train[, c(4:9,11)])
+importance <- xgb.importance(feature_names = feature_names, model = bst)
+xgb.plot.importance(importance)
+```
+
+The second difference came out as the most important feature. That is actually pretty cool because this feature should have picked up on quick fluctuations in the measurements. Most environmental variables don't change that rapidly, so really quick changes on the 2ish-minute scale probably mean something is acting up.
+
+## How does the model compare to the base case?
+Remember that the base case is often a simple range threshold. Does an observation fall outside of an expected range of values for a given parameter. There ranges are usually based on known physical properties (e.g., fresh water can't be below 0 deg C) or prior knowledge of the system (e.g. I know air temps are not going to get above 40 deg C at that latitude).
+
+```{r comparison to base case}
+pred <- predict(bst, dtest)
+prediction <- ifelse (pred > 0.5,1,0) # turn the probabilities into 1 and 0 (1 = bad data)
+
+caret::confusionMatrix(as.factor(prediction), as.factor(ttest[,7]), mode = "everything") 
+# model accuracy is 81%
+
+caret::confusionMatrix(as.factor(test$flagBASE), as.factor(ttest[,7]), mode = "everything") 
+#basecase accuracy %53
+```
+
+So the only current automated check for bad data, a range check, flags about 53% of bad data. The model improved detection of bad data to 81%. Not too bad!
+
+I really didnt do an hyperparameterization so I haven't used the validation data yet. Save that for another day.
+
+
